@@ -1,0 +1,6 @@
+GREENHOUSE_ID = "A"
+BLOCK_ID = "1"
+SENSOR_LOGS_TIMESTAMP_COLUMN = "timestamp"
+SENSOR_LOGS_COLUMNS = list(["values", SENSOR_LOGS_TIMESTAMP_COLUMN])
+GH_BLOCK_METADATA = {"DT:GH_block", "greenhouse:" + str(GREENHOUSE_ID), "block:" + str(BLOCK_ID)}
+
