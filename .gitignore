@@ -2,4 +2,6 @@ __pycache__/
 */.idea/**/*.xml
 
 Data_logger_replica/
+GH_block_DT_clone
+GH_block_DT_clone2
 sensor_logs.h5

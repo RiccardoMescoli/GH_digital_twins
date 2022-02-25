@@ -103,6 +103,8 @@ class DataLogger(object):
         finally:
             self.__lock.release()  # Lock release
 
+        print(f"ANSWERED QUERY - results: {len(ret)}")
+
         return ret
 
     @pyro.expose
@@ -170,7 +172,13 @@ class DataLogger(object):
                                                                )
         return logs
 
-    # TODO: define a system to propagate the greenhouse configurations to the digital twins
+    @pyro.expose
+    def get_sensor_source_feed_keys(self, source_id):
+        return [key.split("_")[1] for key in self.__storage.keys() if key.startswith("/" + str(source_id))]
+
+    @pyro.expose
+    def get_current_time(self):
+        return datetime.now()
 
 
 daemon = pyro.Daemon()
