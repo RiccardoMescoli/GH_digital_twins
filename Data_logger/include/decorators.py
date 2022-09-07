@@ -77,7 +77,7 @@ class SetLogSensorType(object):
 
 class AutoRemoveOldLogsHDF5(object):
     
-    def __init__(self, hdf5_storage, storage_lock, logs_ttl=7):
+    def __init__(self, hdf5_storage, storage_lock, logs_ttl_days=7):
         """
         *DECORATOR*
         The wrapper function will execute a cleaning of the storage after the execution of the decorated function,
@@ -85,12 +85,12 @@ class AutoRemoveOldLogsHDF5(object):
 
         :param hdf5_storage: Storage object to access the logs
         :param storage_lock: Lock to synchronize accesses to the storage (in order to avoid faulty reads)
-        :param logs_ttl: Amount of days before the elimination of a log entry
+        :param logs_ttl_days: Amount of days before the elimination of a log entry
         """
 
         self.__hdf5_storage = hdf5_storage
         self.__storage_lock = storage_lock
-        self.__logs_ttl = logs_ttl
+        self.__logs_ttl = logs_ttl_days
         self.__cleaning_timedelta = timedelta(days=1)
         self.__last_cleaning_timestamp = datetime.now() - timedelta(days=999)
 

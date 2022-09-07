@@ -1,5 +1,6 @@
 import Pyro5.api as pyro
 from Pyro5.errors import CommunicationError, ProtocolError
+import threading
 from random import randint
 from datetime import datetime, timedelta
 import pandas as pd
@@ -16,9 +17,11 @@ class GHBlockDT(object):
         self.__id = self.__greenhouse_id + self.__block_id
         self.__network_id = None  # To be initialized with an appropriate call
 
+        self.__lock = threading.Lock()
+
         self.__is_master = False
         self.__master_id = None
-
+        # TODO: MAKE A DECORATOR THAT CLEANS THE CACHE SIMILARLY TO THE ONE ON THE DATA LOGGER (is this necessary??)
         self.__cache = dict()
 
     @staticmethod
@@ -59,7 +62,7 @@ class GHBlockDT(object):
         if no_peers:  # If this is the only digital twin of its kind it elects itself master
             self.__is_master = True
             self.__master_id = self.__network_id
-        elif master_id is None:  # If the digital twin had peers but none of the knew the master start the election
+        elif master_id is None:  # If the digital twin had peers but none of them knew the master start the election
             self.initiate_leader_election(initiator=True, startup=startup)
         else:  # Otherwise, just set the new master ID and check if it is still available
             self.__master_id = str(master_id)
@@ -128,8 +131,8 @@ class GHBlockDT(object):
         received_log = None
         for i in range(QUERY_FORWARDING_MAX_ATTEMPTS):
             try:
-                if error is not None and self.__is_master:
-                    received_log = proxy.get_sensor_log(self.__id,
+                if error is not None and self.__is_master:          # In case the node gets elected as Master
+                    received_log = proxy.get_sensor_log(self.__id,  # contact a logger directly
                                                         feed_id,
                                                         days=days,
                                                         hours=hours,
@@ -142,7 +145,7 @@ class GHBlockDT(object):
             except ProtocolError as e:
                 print(" >> ERROR: Tried forwarding to another SLAVE node")
                 self.lookup_master()
-                if self.__is_master:
+                if self.__is_master:  # In case the contacted node was actually a slave, lookup the real master
                     datalogger_names = list(pyro.locate_ns().yplookup(meta_all=["datalogger"]).keys())
                     logger_proxy_name = datalogger_names[randint(0, len(datalogger_names) - 1)]
                     proxy = pyro.Proxy(logger_proxy_name)
@@ -150,7 +153,7 @@ class GHBlockDT(object):
                     time.sleep(QUERY_FORWARDING_REDIRECTION_DELAY)
                     proxy = pyro.Proxy("PYROMETA:" + NETWORK_ID_METADATA_KEY + self.__master_id)
                 error = e
-            except CommunicationError as e:
+            except CommunicationError as e:  # In case the master goes down, initiate a new leader election
                 print(" >> ERROR: Tried forwarding to unavailable MASTER node")
                 self.initiate_leader_election(initiator=True)
                 if self.__is_master:
@@ -181,12 +184,99 @@ class GHBlockDT(object):
 
     @pyro.expose
     def forward_query(self, feed_id, days=0.0, hours=0.0, minutes=0.0, seconds=0.0):
+        """
+        Slave nodes can call this method on the master to forward a query to it, taking advantage of the master
+        cache
+        :param feed_id:
+        :param days:
+        :param hours:
+        :param minutes:
+        :param seconds:
+        :return:
+        """
         if not self.__is_master:
             raise ProtocolError
+
         print(" -- EXECUTING QUERY FOR A SLAVE NODE")
         return self.get_sensor_log(feed_id, days=days, hours=hours, minutes=minutes, seconds=seconds)
 
-    # TODO: BREAK THIS MONSTROSITY'S CODE INTO MANY SUB-METHODS
+    def query_discard_cache(self, proxy, feed_id, days, hours, minutes, seconds):
+        print("START QUERY - DISCARD")
+        if self.__is_master:
+            print(" >> DIRECT QUERY")
+            # TODO: handle the case with unavailable logger
+            received_log = proxy.get_sensor_log(self.__id,
+                                                feed_id,
+                                                days=days,
+                                                hours=hours,
+                                                minutes=minutes,
+                                                seconds=seconds
+                                                )
+        else:
+            print(" >> FORWARDING QUERY TO MASTER")
+            received_log = self.handle_query_forwarding(proxy,
+                                                        feed_id,
+                                                        days=days,
+                                                        hours=hours,
+                                                        minutes=minutes,
+                                                        seconds=seconds
+                                                        )
+
+        self.__cache[feed_id] = dict()
+        received_dataframe = pd.DataFrame(received_log, columns=SENSOR_LOGS_COLUMNS)
+        # Convert the timestamp column from string (iso format) to datetime
+        received_dataframe = self.__iso_format_col_to_datetime(received_dataframe,
+                                                               SENSOR_LOGS_TIMESTAMP_COLUMN
+                                                               )
+        self.__lock.acquire()
+        self.__cache[feed_id]["values"] = received_dataframe
+        self.__lock.release()
+
+        print(" >> DISCARDED CACHED DATA!")
+        return received_dataframe
+
+    def query_keep_cache(self, cached_log, proxy, feed_id, current_timestamp, remote_current_timestamp, delta):
+        print("START QUERY - REUSE")
+
+        # Tries to get the data logs successive to last query (minus a second for possible discrepancies)
+        query_timestamp = cached_log["update_timestamp"] - cached_log["relative_delta"] - timedelta(seconds=1)
+        if self.__is_master:
+            print(" >> DIRECT QUERY")
+            received_log = proxy.get_sensor_log_till_timestamp(self.__id,
+                                                               feed_id,
+                                                               query_timestamp
+                                                               )
+        else:
+            print(" >> FORWARDING QUERY TO MASTER")
+            query_delta = current_timestamp - query_timestamp
+            received_log = self.handle_query_forwarding(proxy,
+                                                        feed_id,
+                                                        days=query_delta.days,
+                                                        seconds=query_delta.seconds + (query_delta.microseconds
+                                                                                       / int(1e+6))
+                                                        )
+
+        # Turn the data into a dataframe and convert the timestamp column from string (iso format) to datetime
+        received_dataframe = self.__iso_format_col_to_datetime(pd.DataFrame(received_log,
+                                                                            columns=SENSOR_LOGS_COLUMNS
+                                                                            ),
+                                                               SENSOR_LOGS_TIMESTAMP_COLUMN
+                                                               )
+
+        self.__lock.acquire()
+        # Concatenate the newly obtained data with the previously existing cached data
+        self.__cache[feed_id]["values"] = pd.concat([cached_log["values"],
+                                                     received_dataframe
+                                                     ], ignore_index=True).drop_duplicates(ignore_index=True)
+
+        # Get the current time from the logger in order to give back an accurate timeslice
+        mask = self.__cache[feed_id]["values"][SENSOR_LOGS_TIMESTAMP_COLUMN] >= remote_current_timestamp - delta
+        ret = self.__cache[feed_id]["values"][mask]
+        self.__lock.release()
+
+        print(" >> REUSED CACHED DATA!")
+        return ret
+
     @pyro.expose
     def get_sensor_log(self, feed_id, days=0.0, hours=0.0, minutes=0.0, seconds=0.0):
         datalogger_names = list(pyro.locate_ns().yplookup(meta_all=["datalogger"]).keys())
@@ -202,6 +292,7 @@ class GHBlockDT(object):
         logger_proxy = pyro.Proxy(logger_proxy_name)
 
         # Getting the current time on the server
+        # TODO: handle the case with unavailable logger
         remote_current_timestamp = datetime.fromisoformat(logger_proxy.get_current_time())
 
         if cached_log is not None and type(log_timestamps.min()) != float:
@@ -222,7 +313,6 @@ class GHBlockDT(object):
 
         # If either there are no cached logs, the cached logs are too old, or the oldest cached log
         # is more recent than the required threshold, just ask for the latest values in the requested time-window
-
         if self.__is_master:
             proxy = logger_proxy
         else:
@@ -234,74 +324,10 @@ class GHBlockDT(object):
                 or type(log_timestamps.min()) == float  # The function may return float NaN if the cache is empty
                 or (threshold_older_than_all_cache and not last_cache_threshold_older_than_current)):
 
-            print("START QUERY - DISCARD")
-            if self.__is_master:
-                print(" >> DIRECT QUERY")
-                received_log = proxy.get_sensor_log(self.__id,
-                                                    feed_id,
-                                                    days=days,
-                                                    hours=hours,
-                                                    minutes=minutes,
-                                                    seconds=seconds
-                                                    )
-            else:
-                print(" >> FORWARDING QUERY TO MASTER")
-                received_log = self.handle_query_forwarding(proxy,
-                                                            feed_id,
-                                                            days=days,
-                                                            hours=hours,
-                                                            minutes=minutes,
-                                                            seconds=seconds
-                                                            )
-
-            self.__cache[feed_id] = dict()
-            received_dataframe = pd.DataFrame(received_log, columns=SENSOR_LOGS_COLUMNS)
-            # Convert the timestamp column from string (iso format) to datetime
-            self.__cache[feed_id]["values"] = self.__iso_format_col_to_datetime(received_dataframe,
-                                                                                SENSOR_LOGS_TIMESTAMP_COLUMN
-                                                                                )
-
-            ret = self.__cache[feed_id]["values"]
-
-            print(" >> DISCARDED CACHED DATA!")
+            ret = self.query_discard_cache(proxy, feed_id, days, hours, minutes, seconds)
 
         else:  # If the cached values cover the older end of the time-window just ask for the remaining values
-            print("START QUERY - REUSE")
-
-            # Tries to get the data logs successive to last query (minus a second for possible discrepancies)
-            query_timestamp = cached_log["update_timestamp"] - cached_log["relative_delta"] - timedelta(seconds=1)
-            if self.__is_master:
-                print(" >> DIRECT QUERY")
-                received_log = proxy.get_sensor_log_till_timestamp(self.__id,
-                                                                   feed_id,
-                                                                   query_timestamp
-                                                                   )
-            else:
-                print(" >> FORWARDING QUERY TO MASTER")
-                query_delta = current_timestamp - query_timestamp
-                received_log = self.handle_query_forwarding(proxy,
-                                                            feed_id,
-                                                            days=query_delta.days,
-                                                            seconds=query_delta.seconds + (query_delta.microseconds
-                                                                                           / int(1e+6))
-                                                            )
-
-            # Turn the data into a dataframe and convert the timestamp column from string (iso format) to datetime
-            received_dataframe = self.__iso_format_col_to_datetime(pd.DataFrame(received_log,
-                                                                                columns=SENSOR_LOGS_COLUMNS
-                                                                                ),
-                                                                   SENSOR_LOGS_TIMESTAMP_COLUMN
-                                                                   )
-            # Concatenate the newly obtained data with the previously existing cached data
-            self.__cache[feed_id]["values"] = pd.concat([cached_log["values"],
-                                                         received_dataframe
-                                                         ], ignore_index=True).drop_duplicates(ignore_index=True)
-
-            # Get the current time from the logger in order to give back an accurate timeslice
-            mask = self.__cache[feed_id]["values"][SENSOR_LOGS_TIMESTAMP_COLUMN] >= remote_current_timestamp - delta
-            ret = self.__cache[feed_id]["values"][mask]
-
-            print(" >> REUSED CACHED DATA!")
+            ret = self.query_keep_cache(cached_log, proxy, feed_id, current_timestamp, remote_current_timestamp, delta)
 
         # Update the "last update" timestamp
         self.__cache[feed_id]["update_timestamp"] = current_timestamp

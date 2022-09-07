@@ -69,10 +69,10 @@ class DataLogger(object):
                                           min_itemsize=SENSOR_LOGS_COLUMNS_SIZES
                                           )
             self.__storage.close()  # Storage flushed and closed
-
-            self.__lock.release()  # Release lock
         except AttributeError:
             pass
+        finally:
+            self.__lock.release()  # Release lock
 
     def __get_sensor_log_threshold(self, storage_key, threshold):
         try:
@@ -189,17 +189,3 @@ uri = daemon.register(logger_obj)
 ns.register(str(uri), uri, metadata=DATA_LOGGER_METADATA)
 print(f"Data logger {uri}: READY")
 daemon.requestLoop()
-
-
-###################
-#    DEBUGGING    #
-###################
-
-"""
-i = 0
-while True:
-    print(i)
-    hours = input("Hours: ")
-    minutes = input("Minutes: ")
-    print(logger.get_sensor_values("A2", "TEMPERATURE", days=0, hours=hours, minutes=minutes, seconds=0))
-"""

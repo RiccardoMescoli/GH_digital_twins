@@ -6,7 +6,9 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="GH_block_DT" />
     <orderEntry type="module" module-name="Data_logger_replica" />
-    <orderEntry type="module" module-name="GH_block_DT_clone" />
-    <orderEntry type="module" module-name="GH_block_DT_clone2" />
+    <orderEntry type="module" module-name="GH_block_DT_clone_A1" />
+    <orderEntry type="module" module-name="GH_block_DT_clone2_A1" />
+    <orderEntry type="module" module-name="GH_block_DT_B1" />
+    <orderEntry type="module" module-name="Client" />
   </component>
 </module>
