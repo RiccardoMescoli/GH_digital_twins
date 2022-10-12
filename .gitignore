@@ -5,3 +5,5 @@ __pycache__/
 Data_logger_*/
 GH_block_DT_*/
 sensor_logs.h5
+debug_client.py
+launch_nameserver.sh
