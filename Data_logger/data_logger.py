@@ -108,6 +108,10 @@ class DataLogger(object):
         return ret
 
     @pyro.expose
+    def ping(self):
+        return True
+
+    @pyro.expose
     def get_sensor_log(self, source_id, feed_id, days=0, hours=0, minutes=0, seconds=0):
         """
         Remote method to retrieve entries matching a specific time slice from a specific log

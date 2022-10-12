@@ -60,8 +60,8 @@ def update():
 
             break
 
-        except CommunicationError:
-            print("ERROR: Failed communication with the DT")
+        except (CommunicationError, ValueError):
+            print("ERROR: Failed data retrieval from the DT")
 
             current_try += 1
             if current_try >= GET_LOGS_MAX_TRIES:
@@ -74,8 +74,9 @@ def _initialize_graph_data(rem_source):
     global plot
     global latest_timestamp
 
+    # TODO: Sia qui che nell'update esiste il caso in cui vengono restituiti zero log
     try:
-        new_data = pd.DataFrame(rem_source.get_sensor_log(select_sensor.value, hours=1), columns=["values", "timestamp"])
+        new_data = pd.DataFrame(rem_source.get_sensor_log(select_sensor.value, hours=24), columns=["values", "timestamp"])
         new_data["values"] = new_data["values"].astype(float)
         new_data["timestamp"] = new_data["timestamp"].apply(lambda x: datetime.fromisoformat(x))
         source.data = new_data.to_dict(orient="list")
@@ -89,6 +90,8 @@ def _initialize_graph_data(rem_source):
     except CommunicationError:
         print("ERROR: Failed communication with the DT")
         return False
+    except ValueError:
+        print("ERROR: Failed the initial data retrieval (The loggers or the DTs may have some issues!)")
 
 
 def change_source(attrname, old, new):

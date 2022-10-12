@@ -7,6 +7,7 @@ import pandas as pd
 import time
 
 from include.configuration import *
+from include.decorators import AutoRemoveOldLogsCache
 
 
 class GHBlockDT(object):
@@ -21,8 +22,13 @@ class GHBlockDT(object):
 
         self.__is_master = False
         self.__master_id = None
-        # TODO: MAKE A DECORATOR THAT CLEANS THE CACHE SIMILARLY TO THE ONE ON THE DATA LOGGER (is this necessary??)
         self.__cache = dict()
+
+        # Applying the decorator to handle the removal of old cache values
+        self.get_sensor_log = pyro.expose(AutoRemoveOldLogsCache(self.__lock,
+                                                                 self.__cache,
+                                                                 logs_ttl_hours=CACHE_LOGS_TTL_HOURS
+                                                                 )(self.get_sensor_log))
 
     @staticmethod
     def __iso_format_col_to_datetime(df, column):
@@ -289,11 +295,13 @@ class GHBlockDT(object):
         cached_log = self.__cache.get(feed_id)
         log_timestamps = cached_log["values"][SENSOR_LOGS_TIMESTAMP_COLUMN] if cached_log is not None else None
 
-        logger_proxy = pyro.Proxy(logger_proxy_name)
-
         # Getting the current time on the server
-        # TODO: handle the case with unavailable logger
-        remote_current_timestamp = datetime.fromisoformat(logger_proxy.get_current_time())
+        try:
+            logger_proxy = pyro.Proxy(logger_proxy_name)
+            remote_current_timestamp = datetime.fromisoformat(logger_proxy.get_current_time())
+        except (ValueError, CommunicationError):
+            print("ERROR: Failed to reach the logger")
+            raise CommunicationError
 
         if cached_log is not None and type(log_timestamps.min()) != float:
             remote_update_timestamp = (cached_log["update_timestamp"] - cached_log["relative_delta"])
@@ -337,7 +345,6 @@ class GHBlockDT(object):
         self.__cache[feed_id]["last_query_cache_threshold"] = cache_threshold
 
         return ret.values.tolist()
-
 
 daemon = pyro.Daemon()
 ns = pyro.locate_ns()
