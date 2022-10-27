@@ -72,7 +72,8 @@ class DataLogger(object):
         except AttributeError:
             pass
         finally:
-            self.__lock.release()  # Release lock
+            if self.__lock.locked():
+                self.__lock.release()  # Lock release
 
     def __get_sensor_log_threshold(self, storage_key, threshold):
         try:
@@ -101,7 +102,8 @@ class DataLogger(object):
             print(error_string)
             raise remote_error
         finally:
-            self.__lock.release()  # Lock release
+            if self.__lock.locked():
+                self.__lock.release()  # Lock release
 
         print(f"ANSWERED QUERY - results: {len(ret)}")
 

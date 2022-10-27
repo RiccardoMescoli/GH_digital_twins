@@ -79,9 +79,9 @@ def _initialize_graph_data(rem_source):
         new_data = pd.DataFrame(rem_source.get_sensor_log(select_sensor.value, hours=24), columns=["values", "timestamp"])
         new_data["values"] = new_data["values"].astype(float)
         new_data["timestamp"] = new_data["timestamp"].apply(lambda x: datetime.fromisoformat(x))
+        latest_timestamp = new_data["timestamp"].min()
         source.data = new_data.to_dict(orient="list")
         plot.title.text = f"Block: {select_block_id.value}  Sensor: {select_sensor.value}"
-        latest_timestamp = new_data["timestamp"].min()
 
         return True
     except NamingError:
