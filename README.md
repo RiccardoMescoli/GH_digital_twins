@@ -22,13 +22,16 @@ Then the project can be setup and run automatically with the following commands 
 ```
 **NOTE:** Modify the section tagged with the comment "Services section" by following the reported instructions in order to add/modify/delete any service.
 
-4. **OPTIONAL** - Run the script to start the test client (a simple dashboard):
+4. **OPTIONAL** - Run the script to start the dashboard used as a test client (starting from the root directory):
 ```
-cd ..
 cd Client/
 launch_dashboard.sh
 ```
-5. **OPTIONAL** - to simulate the source devices:
+5. **OPTIONAL** - to simulate the source devices (in the "Client" directory accessed in the step above):
 ```
 python sensor_data_simulation.py
+```
+6. **OPTIONAL** - to test the sistem reaction when under high loads of traffic (starting from the root directory):
+```
+python DT_bombardier.py
 ```
