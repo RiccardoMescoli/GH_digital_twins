@@ -22,6 +22,11 @@ Then the project can be setup and run automatically with the following commands 
 ```
 **NOTE:** Modify the section tagged with the comment "Services section" by following the reported instructions in order to add/modify/delete any service.
 
+**NOTE:** Before performing the optional steps 4 and 5 is necessary to their requirements with (starting from the root directory):
+```
+cd Client/
+pip install -r requirements.txt
+```
 4. **OPTIONAL** - Run the script to start the dashboard used as a test client (starting from the root directory):
 ```
 cd Client/
@@ -30,6 +35,11 @@ launch_dashboard.sh
 5. **OPTIONAL** - to simulate the source devices (in the "Client" directory accessed in the step above):
 ```
 python sensor_data_simulation.py
+```
+
+**NOTE:** Similarly to steps 4 and 5 it's necessary to install the necessary prerequisites before performing step 6 (starting from the root directory):
+```
+pip install -r bombardier_requirements.txt
 ```
 6. **OPTIONAL** - to test the sistem reaction when under high loads of traffic (starting from the root directory):
 ```
