@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/../Client/.idea/Client.iml" filepath="$PROJECT_DIR$/../Client/.idea/Client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/Data_logger.iml" filepath="$PROJECT_DIR$/.idea/Data_logger.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../Data_logger_replica/.idea/Data_logger_replica.iml" filepath="$PROJECT_DIR$/../Data_logger_replica/.idea/Data_logger_replica.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../GH_block_DT/.idea/GH_block_DT.iml" filepath="$PROJECT_DIR$/../GH_block_DT/.idea/GH_block_DT.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../GH_block_DT_B1/.idea/GH_block_DT_B1.iml" filepath="$PROJECT_DIR$/../GH_block_DT_B1/.idea/GH_block_DT_B1.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../GH_block_DT_clone2_A1/.idea/GH_block_DT_clone2_A1.iml" filepath="$PROJECT_DIR$/../GH_block_DT_clone2_A1/.idea/GH_block_DT_clone2_A1.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../GH_block_DT_clone_A1/.idea/GH_block_DT_clone_A1.iml" filepath="$PROJECT_DIR$/../GH_block_DT_clone_A1/.idea/GH_block_DT_clone_A1.iml" />
+    </modules>
+  </component>
+</project>

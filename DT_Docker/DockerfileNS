@@ -1,0 +1,14 @@
+FROM python:3.9-bullseye
+
+COPY Nameserver/launch_nameserver.py /launch_nameserver.py
+COPY Nameserver/requirements.txt /requirements.txt
+COPY scriptNS.sh /script.sh
+
+RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update
+# RUN apt-get install -y iputils-ping
+
+EXPOSE 9090
+EXPOSE 9091
+
+CMD ["/script.sh"]

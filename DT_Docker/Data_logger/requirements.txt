@@ -1,0 +1,12 @@
+Jinja2==3.0.3
+MarkupSafe==2.0.1
+Pillow==9.0.1
+Pygments==2.11.2
+Pyro5==5.13.1
+PyYAML==6.0
+QtPy==2.0.1
+Send2Trash==1.8.0
+typing_extensions==4.0.1
+paho-mqtt==1.6.1
+tables==3.7.0
+pandas==1.4.1

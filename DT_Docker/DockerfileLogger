@@ -1,0 +1,13 @@
+FROM python:3.9-bullseye
+
+COPY Data_logger /Data_logger
+COPY Data_logger/requirements.txt /requirements.txt
+COPY scriptLogger.sh /script.sh
+
+RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update
+# RUN apt-get install -y iputils-ping
+
+EXPOSE 9090
+
+CMD ["/script.sh"]

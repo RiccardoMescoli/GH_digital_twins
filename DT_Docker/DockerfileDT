@@ -1,0 +1,15 @@
+FROM python:3.9-bullseye
+
+COPY GH_block_DT /DT
+COPY scriptDT.sh /script.sh
+
+ARG LOCAL_PORT=9090
+ENV LOCAL_PORT=$LOCAL_PORT
+
+RUN pip install --no-cache-dir -r /DT/requirements.txt
+RUN apt-get update
+# RUN apt-get install -y iputils-ping
+
+EXPOSE $LOCAL_PORT
+
+CMD ["/script.sh"]
